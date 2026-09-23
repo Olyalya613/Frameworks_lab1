@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Книга відгуків</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: #f4f4f4;
+            margin: 0;
+            padding: 40px;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+        }
+
+        input,
+        textarea,
+        button {
+            width: 100%;
+            box-sizing: border-box;
+            padding: 12px;
+            margin-bottom: 10px;
+            font-size: 16px;
+        }
+
+        textarea {
+            min-height: 120px;
+            resize: vertical;
+        }
+
+        button {
+            cursor: pointer;
+        }
+
+        .comment {
+            border-bottom: 1px solid #ddd;
+            padding: 15px 0;
+        }
+
+        .comment-author {
+            font-weight: bold;
+        }
+
+        .comment-date {
+            color: #777;
+            font-size: 13px;
+        }
+
+        #message {
+            margin: 10px 0;
+        }
+
+        .error {
+            color: red;
+        }
+
+        .success {
+            color: green;
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>Книга відгуків</h1>
+
+    <form id="commentForm">
+
+        <input
+                type="text"
+                id="author"
+                name="author"
+                placeholder="Ваше ім'я"
+                maxlength="64"
+                required
+        >
+
+        <textarea
+                id="text"
+                name="text"
+                placeholder="Ваш відгук"
+                maxlength="1000"
+                required
+        ></textarea>
+
+        <button type="submit">
+            Надіслати відгук
+        </button>
+
+    </form>
+
+    <div id="message"></div>
+
+    <h2>Відгуки</h2>
+
+    <div id="comments">
+        Завантаження...
+    </div>
+
+</div>
+
+<script>
+
+    const form = document.getElementById("commentForm");
+    const commentsDiv = document.getElementById("comments");
+    const messageDiv = document.getElementById("message");
+
+
+    // ----------------------------
+    // Завантаження відгуків
+    // ----------------------------
+
+    async function loadComments() {
+
+        try {
+
+            const response = await fetch("/comments");
+
+            if (!response.ok) {
+                throw new Error("Помилка завантаження відгуків");
+            }
+
+            const comments = await response.json();
+
+            commentsDiv.innerHTML = "";
+
+            if (comments.length === 0) {
+                commentsDiv.textContent = "Ще немає відгуків.";
+                return;
+            }
+
+            comments.forEach(comment => {
+
+                const div = document.createElement("div");
+                div.className = "comment";
+
+                const author = document.createElement("div");
+                author.className = "comment-author";
+                author.textContent = comment.author;
+
+                const text = document.createElement("div");
+                text.textContent = comment.text;
+
+                const date = document.createElement("div");
+                date.className = "comment-date";
+                date.textContent = comment.createdAt;
+
+                div.appendChild(author);
+                div.appendChild(text);
+                div.appendChild(date);
+
+                commentsDiv.appendChild(div);
+            });
+
+        } catch (error) {
+
+            commentsDiv.textContent =
+                "Не вдалося завантажити відгуки.";
+
+            console.error(error);
+        }
+    }
+
+
+    // ----------------------------
+    // Додавання нового відгуку
+    // ----------------------------
+
+    form.addEventListener("submit", async function(event) {
+
+        event.preventDefault();
+
+        messageDiv.textContent = "";
+        messageDiv.className = "";
+
+        const author =
+            document.getElementById("author").value.trim();
+
+        const text =
+            document.getElementById("text").value.trim();
+
+
+        // Перевірка на стороні браузера
+
+        if (!author) {
+            messageDiv.textContent =
+                "Введіть ім'я.";
+
+            messageDiv.className = "error";
+            return;
+        }
+
+        if (!text) {
+            messageDiv.textContent =
+                "Введіть текст відгуку.";
+
+            messageDiv.className = "error";
+            return;
+        }
+
+
+        // Формуємо дані для сервера
+
+        const params = new URLSearchParams();
+
+        params.append("author", author);
+        params.append("text", text);
+
+
+        try {
+
+            const response = await fetch("/comments", {
+
+                method: "POST",
+
+                headers: {
+                    "Content-Type":
+                        "application/x-www-form-urlencoded;charset=UTF-8"
+                },
+
+                body: params.toString()
+            });
+
+
+            if (response.status === 204) {
+
+                messageDiv.textContent =
+                    "Відгук успішно додано!";
+
+                messageDiv.className = "success";
+
+                form.reset();
+
+                await loadComments();
+
+            } else {
+
+                const errorText =
+                    await response.text();
+
+                messageDiv.textContent =
+                    "Помилка " +
+                    response.status +
+                    ": " +
+                    errorText;
+
+                messageDiv.className = "error";
+            }
+
+        } catch (error) {
+
+            messageDiv.textContent =
+                "Не вдалося підключитися до сервера.";
+
+            messageDiv.className = "error";
+
+            console.error(error);
+        }
+
+    });
+
+
+    // Завантажуємо відгуки
+    // одразу після відкриття сторінки
+
+    loadComments();
+
+</script>
+
+</body>
+</html>
